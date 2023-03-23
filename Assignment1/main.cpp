@@ -26,6 +26,13 @@ Eigen::Matrix4f get_model_matrix(float rotation_angle)
     // TODO: Implement this function
     // Create the model matrix for rotating the triangle around the Z axis.
     // Then return it.
+    float cosx = std::cos(rotation_angle);
+    float sinx = std::sin(rotation_angle);
+
+    model << cosx, -sinx, 0.0, 0.0,
+             sinx, cosx, 0.0, 0.0,
+		     0.0, 0.0, 1.0, 0.0, 
+		     0.0, 0.0, 0.0, 1.0;
 
     return model;
 }
@@ -36,6 +43,19 @@ Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio,
     // Students will implement this function
 
     Eigen::Matrix4f projection = Eigen::Matrix4f::Identity();
+    float fovct = 1.0f / std::tan(eye_fov / 2.0f);
+    float x = 1.0f / aspect_ratio * fovct;
+    float y = fovct;
+    float fsn = zFar - zNear;
+    float z = -(zFar + zNear) / fsn;
+    float tz = -2 * zFar * zNear / fsn;
+
+    float ttz = -1;
+
+    projection << x, 0.0, 0.0, 0.0,
+                  0.0, y, 0.0, 0.0, 
+                  0.0, 0.0, z, tz,
+                  0.0, 0.0, ttz, 0.0;
 
     // TODO: Implement this function
     // Create the projection matrix for the given parameters.
@@ -46,7 +66,7 @@ Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio,
 
 int main(int argc, const char** argv)
 {
-    float angle = 0;
+    float angle = 90;
     bool command_line = false;
     std::string filename = "output.png";
 
@@ -64,7 +84,7 @@ int main(int argc, const char** argv)
 
     Eigen::Vector3f eye_pos = {0, 0, 5};
 
-    std::vector<Eigen::Vector3f> pos{{2, 0, -2}, {0, 2, -2}, {-2, 0, -2}};
+    std::vector<Eigen::Vector3f> pos{{0, 0, 0}, {0, 2, -2}, {-2, 0, -2}};
 
     std::vector<Eigen::Vector3i> ind{{0, 1, 2}};
 
