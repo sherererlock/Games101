@@ -158,7 +158,9 @@ void rst::rasterizer::draw(rst::pos_buf_id pos_buffer, rst::ind_buf_id ind_buffe
 
         // 透视除法
         for (auto& vec : v) {
-            vec /= vec.w();
+            vec.x() /= vec.w();
+            vec.y() /= vec.w();
+            vec.z() /= vec.w();
         }
 
          // 视图变换
