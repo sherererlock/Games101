@@ -76,6 +76,7 @@ namespace rst
         void set_fragment_shader(std::function<Eigen::Vector3f(fragment_shader_payload)> frag_shader);
 
         void set_pixel(const Vector2i &point, const Eigen::Vector3f &color);
+        void mix_pixel(const Eigen::Vector3f& point, const Eigen::Vector3f& color);
 
         void clear(Buffers buff);
 
@@ -87,6 +88,7 @@ namespace rst
     private:
         void draw_line(Eigen::Vector3f begin, Eigen::Vector3f end);
 
+        void msaa(float x, float y, const Triangle& t, const std::array<Vector4f, 3>& v);
         void rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& world_pos);
 
         // VERTEX SHADER -> MVP -> Clipping -> /.W -> VIEWPORT -> DRAWLINE/DRAWTRI -> FRAGSHADER
@@ -113,6 +115,7 @@ namespace rst
         int get_index(int x, int y);
 
         int width, height;
+        int msaa_w, msaa_h;
 
         int next_id = 0;
         int get_next_id() { return next_id++; }

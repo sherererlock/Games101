@@ -186,24 +186,29 @@ void rst::rasterizer::draw(std::vector<Triangle *> &TriangleList) {
                 (view * model * t->v[2])
         };
 
+        // 记录viewspace的位置
         std::array<Eigen::Vector3f, 3> viewspace_pos;
 
         std::transform(mm.begin(), mm.end(), viewspace_pos.begin(), [](auto& v) {
             return v.template head<3>();
         });
 
+        // 裁剪空间的位置
         Eigen::Vector4f v[] = {
                 mvp * t->v[0],
                 mvp * t->v[1],
                 mvp * t->v[2]
         };
+
         //Homogeneous division
+        // ccv，NDC坐标
         for (auto& vec : v) {
             vec.x()/=vec.w();
             vec.y()/=vec.w();
-            vec.z()/=vec.w();
+            vec.z()/= vec.w();
         }
 
+        // 用矩阵逆的转置来变换法向量， viewspace的法线
         Eigen::Matrix4f inv_trans = (view * model).inverse().transpose();
         Eigen::Vector4f n[] = {
                 inv_trans * to_vec4(t->normal[0], 0.0f),
@@ -216,7 +221,7 @@ void rst::rasterizer::draw(std::vector<Triangle *> &TriangleList) {
         {
             vert.x() = 0.5*width*(vert.x()+1.0);
             vert.y() = 0.5*height*(vert.y()+1.0);
-            vert.z() = vert.z() * f1 + f2;
+            //vert.z() = vert.z() * f1 + f2;
         }
 
         for (int i = 0; i < 3; ++i)
@@ -256,9 +261,112 @@ static Eigen::Vector2f interpolate(float alpha, float beta, float gamma, const E
     return Eigen::Vector2f(u, v);
 }
 
+void rst::rasterizer::msaa(float x, float y, const Triangle& t, const std::array<Vector4f, 3>& v)
+{
+    int totalSampleCount = msaa_w * msaa_h;
+
+    float w = 1.0f / msaa_w;
+    float h = 1.0f / msaa_h;
+
+    int insideSampleCount = 0;
+    for (int j = 0; j < msaa_w; j++)
+    {
+        for (int i = 0; i < msaa_h; i++)
+        {
+            float px = x + w * i + w * 0.5f;
+            float py = y + h * j + h * 0.5f;
+            if (insideTriangle(px, py, t.v))
+            {
+                int buffer_idx = x * msaa_w + i + (y * msaa_h + j) * width * msaa_w;
+                //std::cout << px << " " << py << " " << sample_idx << std::endl;
+				auto [alpha, beta, gamma] = computeBarycentric2D(px, py, t.v);
+				float z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+				if (z > depth_buf[buffer_idx])
+					continue;
+
+                depth_buf[buffer_idx] = z;
+                insideSampleCount++;
+            }
+        }
+    }
+
+	if (insideSampleCount > 0)
+	{
+		auto [alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
+		float z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+
+		Vector3f color = z * (alpha * t.color[0] / v[0].w() + beta * t.color[1] / v[1].w() + gamma * t.color[2] / v[2].w());
+        Vector3f normal = z * (alpha * t.normal[0] / v[0].w() + beta * t.normal[1] / v[1].w() + gamma * t.normal[2] / v[2].w());
+        Vector2f texcoords = z * (alpha * t.tex_coords[0] / v[0].w() + beta * t.tex_coords[1] / v[1].w() + gamma * t.tex_coords[2] / v[2].w());
+
+		color *= 255;
+        color *= ((float)insideSampleCount / (float)totalSampleCount);
+
+        fragment_shader_payload payload( color, normal.normalized(), texcoords, texture ? &*texture : nullptr);
+        auto pixel_color = fragment_shader(payload);
+        set_pixel(Vector2i(x, y), pixel_color);
+	}
+}
+
 //Screen space rasterization
 void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& view_pos) 
 {
+    auto v = t.toVector4();
+    
+    float minx = width, miny = height, maxx = 0, maxy = 0;
+
+    for (int i = 0; i < v.size(); i++)
+    {
+        if (v[i].x() < minx)
+            minx = v[i].x();
+        if(v[i].x() > maxx)
+            maxx = v[i].x();
+
+		if (v[i].y() < miny)
+			miny = v[i].y();
+		if (v[i].y() > maxy)
+			maxy = v[i].y();
+    }
+
+    for(int y = miny; y < maxy; y ++)
+    {
+        for (int x = minx; x < maxx; x ++)
+        {
+            if (insideTriangle(x, y, t.v))
+            {
+		        auto [alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
+                
+                float z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+
+                float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+                zp *= z;
+
+                int buffer_idx = get_index(x, y);
+                if (zp > depth_buf[buffer_idx])
+					continue;
+
+
+                depth_buf[buffer_idx] = zp;
+
+		        //Vector3f color = z * (alpha * t.color[0] / v[0].w() + beta * t.color[1] / v[1].w() + gamma * t.color[2] / v[2].w());
+
+                float alpha0 = alpha / v[0].w();
+                float beta0 = beta / v[1].w();
+                float gamma0 = gamma / v[2].w();
+                Vector3f color = interpolate(alpha0, beta0, gamma0, t.color[0], t.color[1], t.color[2],  1.0f / z);
+                Vector3f normal = interpolate(alpha0, beta0, gamma0, t.normal[0], t.normal[1], t.normal[2],  1.0f / z);
+                Vector3f view_position = interpolate(alpha0, beta0, gamma0, view_pos[0], view_pos[1], view_pos[2],  1.0f / z);
+
+                Vector2f texcoords = interpolate(alpha0, beta0, gamma0, t.tex_coords[0], t.tex_coords[1], t.tex_coords[2],  1.0f / z);
+
+                fragment_shader_payload payload( color, normal.normalized(), texcoords, texture ? &*texture : nullptr);
+                payload.view_pos = view_position;
+                auto pixel_color = fragment_shader(payload);
+                set_pixel(Vector2i(x, y), pixel_color);
+            }
+        }
+    }
+
     // TODO: From your HW3, get the triangle rasterization code.
     // TODO: Inside your rasterization loop:
     //    * v[i].w() is the vertex view space depth value z.
@@ -312,6 +420,10 @@ void rst::rasterizer::clear(rst::Buffers buff)
 
 rst::rasterizer::rasterizer(int w, int h) : width(w), height(h)
 {
+    msaa_w = 1;
+    msaa_h = 1;
+    int sample_count = msaa_h * msaa_w;
+
     frame_buf.resize(w * h);
     depth_buf.resize(w * h);
 
@@ -328,6 +440,14 @@ void rst::rasterizer::set_pixel(const Vector2i &point, const Eigen::Vector3f &co
     //old index: auto ind = point.y() + point.x() * width;
     int ind = (height-point.y())*width + point.x();
     frame_buf[ind] = color;
+}
+
+void rst::rasterizer::mix_pixel(const Eigen::Vector3f& point, const Eigen::Vector3f& color)
+{
+	//old index: auto ind = point.y() + point.x() * width;
+	auto ind = (height - 1 - point.y()) * width + point.x();
+	frame_buf[ind] += color;
+
 }
 
 void rst::rasterizer::set_vertex_shader(std::function<Eigen::Vector3f(vertex_shader_payload)> vert_shader)

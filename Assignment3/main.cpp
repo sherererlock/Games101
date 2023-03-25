@@ -50,9 +50,22 @@ Eigen::Matrix4f get_model_matrix(float angle)
 Eigen::Matrix4f get_projection_matrix(float eye_fov, float aspect_ratio, float zNear, float zFar)
 {
     // TODO: Use the same projection matrix from the previous assignments
-	Eigen::Matrix4f projection;
+	Eigen::Matrix4f projection = Eigen::Matrix4f::Identity();
+	float fovct = 1.0f / std::tan(eye_fov / 2.0f);
+	float x = 1.0f / aspect_ratio * fovct;
+	float y = fovct;
+	float fsn = zFar - zNear;
+	float z = -(zFar + zNear) / fsn;
+	float tz = -2 * zFar * zNear / fsn;
 
-	return projection;
+	float ttz = -1;
+
+	projection << x, 0.0, 0.0, 0.0,
+		0.0, y, 0.0, 0.0,
+		0.0, 0.0, z, tz,
+		0.0, 0.0, ttz, 0.0;
+    
+    return projection;
 }
 
 Eigen::Vector3f vertex_shader(const vertex_shader_payload& payload)
@@ -114,7 +127,6 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
-
     }
 
     return result_color * 255.f;
@@ -139,12 +151,37 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
     Eigen::Vector3f point = payload.view_pos;
     Eigen::Vector3f normal = payload.normal;
 
+    // diffuse = kd * I / (r*r) * max(0, n * l)
+    // specular = ks * I / (r*r) * max(0, cosa)^p (a是反射向量与视线的夹角) Phong模型
+    // specular = ks * I / (r*r) * max(0, n*h)^p (h是入射光线和视线的半程向量，n是法线) Blin-Phong模型
+    // ambient = ka * Ia
+
     Eigen::Vector3f result_color = {0, 0, 0};
     for (auto& light : lights)
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
+
+        Vector3f ambient = ka.cwiseProduct(amb_light_intensity);
+
+        Vector3f eye_vec = (eye_pos - point).normalized();
+
+        Vector3f in_vec = light.position - point;
+        float r2 = in_vec.x() * in_vec.x() +  in_vec.y() * in_vec.y() + in_vec.z() * in_vec.z();
+
+        Vector3f intensity = light.intensity / r2;
+        in_vec = in_vec.normalized();
+        Vector3f diffuse = kd.cwiseProduct(intensity) * std::max(0.0f, normal.dot(in_vec));
         
+        // phong
+        //Vector3f out_vec = reflect(in_vec, normal).normalized();
+        //Vector3f specular = ks.cwiseProduct(intensity) * std::pow(std::max(0.0f, out_vec.dot(eye_vec)), p);
+
+        // blin-phong
+        Vector3f half_vec = (in_vec + eye_vec).normalized();
+        Vector3f specular = ks.cwiseProduct(intensity) * std::pow(std::max(0.0f, normal.dot(half_vec)), p);
+
+        result_color += ambient + diffuse + specular;
     }
 
     return result_color * 255.f;
@@ -244,7 +281,7 @@ int main(int argc, const char** argv)
 {
     std::vector<Triangle*> TriangleList;
 
-    float angle = 140.0;
+    float angle = 140;
     bool command_line = false;
 
     std::string filename = "output.png";
