@@ -1,3 +1,6 @@
 # Directory
 build
 opencv
+eigen3
+eigen3/Eigen/LU
+eigen3/Eigen/src/Eigenvalues/HessenbergDecomposition.h

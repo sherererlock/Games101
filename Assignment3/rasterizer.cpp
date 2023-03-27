@@ -7,6 +7,8 @@
 #include <opencv2/opencv.hpp>
 #include <math.h>
 
+#pragma warning(disable:4244)
+#pragma warning(disable:4305)
 
 rst::pos_buf_id rst::rasterizer::load_positions(const std::vector<Eigen::Vector3f> &positions)
 {
@@ -221,7 +223,6 @@ void rst::rasterizer::draw(std::vector<Triangle *> &TriangleList) {
         {
             vert.x() = 0.5*width*(vert.x()+1.0);
             vert.y() = 0.5*height*(vert.y()+1.0);
-            //vert.z() = vert.z() * f1 + f2;
         }
 
         for (int i = 0; i < 3; ++i)
@@ -257,11 +258,13 @@ static Eigen::Vector2f interpolate(float alpha, float beta, float gamma, const E
 
     u /= weight;
     v /= weight;
+    if (u < 0)
+        int i = 0;
 
     return Eigen::Vector2f(u, v);
 }
 
-void rst::rasterizer::msaa(float x, float y, const Triangle& t, const std::array<Vector4f, 3>& v)
+void rst::rasterizer::msaa(float x, float y, const Triangle& t, const std::array<Vector4f, 3>& v, const std::array<Eigen::Vector3f, 3>& view_pos)
 {
     int totalSampleCount = msaa_w * msaa_h;
 
@@ -278,13 +281,13 @@ void rst::rasterizer::msaa(float x, float y, const Triangle& t, const std::array
             if (insideTriangle(px, py, t.v))
             {
                 int buffer_idx = x * msaa_w + i + (y * msaa_h + j) * width * msaa_w;
-                //std::cout << px << " " << py << " " << sample_idx << std::endl;
 				auto [alpha, beta, gamma] = computeBarycentric2D(px, py, t.v);
 				float z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
-				if (z > depth_buf[buffer_idx])
+                //std::cout << px << " " << py << " " << buffer_idx << " z1" << z <<" z2" << depth_buf_msaa[buffer_idx] <<std::endl;
+				if (z > depth_buf_msaa[buffer_idx])
 					continue;
 
-                depth_buf[buffer_idx] = z;
+                depth_buf_msaa[buffer_idx] = z;
                 insideSampleCount++;
             }
         }
@@ -293,18 +296,52 @@ void rst::rasterizer::msaa(float x, float y, const Triangle& t, const std::array
 	if (insideSampleCount > 0)
 	{
 		auto [alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
-		float z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
 
-		Vector3f color = z * (alpha * t.color[0] / v[0].w() + beta * t.color[1] / v[1].w() + gamma * t.color[2] / v[2].w());
-        Vector3f normal = z * (alpha * t.normal[0] / v[0].w() + beta * t.normal[1] / v[1].w() + gamma * t.normal[2] / v[2].w());
-        Vector2f texcoords = z * (alpha * t.tex_coords[0] / v[0].w() + beta * t.tex_coords[1] / v[1].w() + gamma * t.tex_coords[2] / v[2].w());
+		float alpha0 = alpha / v[0].w();
+		float beta0 = beta / v[1].w();
+		float gamma0 = gamma / v[2].w();
 
-		color *= 255;
-        color *= ((float)insideSampleCount / (float)totalSampleCount);
+        float z = 1.0 / (alpha0 + beta0 + gamma0);
+		Vector3f color = interpolate(alpha0, beta0, gamma0, t.color[0], t.color[1], t.color[2], 1.0f / z);
+		Vector3f normal = interpolate(alpha0, beta0, gamma0, t.normal[0], t.normal[1], t.normal[2], 1.0f / z);
+		Vector3f view_position = interpolate(alpha0, beta0, gamma0, view_pos[0], view_pos[1], view_pos[2], 1.0f / z);
+		Vector2f texcoords = interpolate(alpha0, beta0, gamma0, t.tex_coords[0], t.tex_coords[1], t.tex_coords[2], 1.0f / z);
 
         fragment_shader_payload payload( color, normal.normalized(), texcoords, texture ? &*texture : nullptr);
+        payload.view_pos = view_position;
         auto pixel_color = fragment_shader(payload);
+        //pixel_color *= insideSampleCount / totalSampleCount;
         set_pixel(Vector2i(x, y), pixel_color);
+	}
+}
+
+void rst::rasterizer::rasterize(float x, float y, const Triangle& t, const std::array<Vector4f, 3>& v, const std::array<Eigen::Vector3f, 3>& view_pos)
+{
+	if (insideTriangle(x, y, t.v))
+	{
+		auto [alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
+
+		int buffer_idx = get_index(x, y);
+		if (v[0].z() > depth_buf[buffer_idx])
+			return;
+
+		depth_buf[buffer_idx] = v[0].z();
+
+		float alpha0 = alpha / v[0].w();
+		float beta0 = beta / v[1].w();
+		float gamma0 = gamma / v[2].w();
+
+        float z = 1.0 / (alpha0 + beta0 + gamma0);
+
+		Vector3f color = interpolate(alpha0, beta0, gamma0, t.color[0], t.color[1], t.color[2], 1.0f / z);
+		Vector3f normal = interpolate(alpha0, beta0, gamma0, t.normal[0], t.normal[1], t.normal[2], 1.0f / z);
+		Vector3f view_position = interpolate(alpha0, beta0, gamma0, view_pos[0], view_pos[1], view_pos[2], 1.0f / z);
+		Vector2f texcoords = interpolate(alpha0, beta0, gamma0, t.tex_coords[0], t.tex_coords[1], t.tex_coords[2], 1.0f / z);
+
+		fragment_shader_payload payload(color, normal.normalized(), texcoords, texture ? &*texture : nullptr);
+		payload.view_pos = view_position;
+		auto pixel_color = fragment_shader(payload);
+		set_pixel(Vector2i(x, y), pixel_color);
 	}
 }
 
@@ -332,37 +369,13 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eig
     {
         for (int x = minx; x < maxx; x ++)
         {
-            if (insideTriangle(x, y, t.v))
+            if (msaa_w > 1)
             {
-		        auto [alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
-                
-                float z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
-
-                float zp = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
-                zp *= z;
-
-                int buffer_idx = get_index(x, y);
-                if (zp > depth_buf[buffer_idx])
-					continue;
-
-
-                depth_buf[buffer_idx] = zp;
-
-		        //Vector3f color = z * (alpha * t.color[0] / v[0].w() + beta * t.color[1] / v[1].w() + gamma * t.color[2] / v[2].w());
-
-                float alpha0 = alpha / v[0].w();
-                float beta0 = beta / v[1].w();
-                float gamma0 = gamma / v[2].w();
-                Vector3f color = interpolate(alpha0, beta0, gamma0, t.color[0], t.color[1], t.color[2],  1.0f / z);
-                Vector3f normal = interpolate(alpha0, beta0, gamma0, t.normal[0], t.normal[1], t.normal[2],  1.0f / z);
-                Vector3f view_position = interpolate(alpha0, beta0, gamma0, view_pos[0], view_pos[1], view_pos[2],  1.0f / z);
-
-                Vector2f texcoords = interpolate(alpha0, beta0, gamma0, t.tex_coords[0], t.tex_coords[1], t.tex_coords[2],  1.0f / z);
-
-                fragment_shader_payload payload( color, normal.normalized(), texcoords, texture ? &*texture : nullptr);
-                payload.view_pos = view_position;
-                auto pixel_color = fragment_shader(payload);
-                set_pixel(Vector2i(x, y), pixel_color);
+                msaa(x, y, t, v, view_pos);
+            }
+            else
+            {
+                rasterize(x, y, t, v, view_pos);
             }
         }
     }
@@ -410,11 +423,12 @@ void rst::rasterizer::clear(rst::Buffers buff)
 {
     if ((buff & rst::Buffers::Color) == rst::Buffers::Color)
     {
-        std::fill(frame_buf.begin(), frame_buf.end(), Eigen::Vector3f{0, 0, 0});
+        std::fill(frame_buf.begin(), frame_buf.end(), Eigen::Vector3f{255, 255, 255 });
     }
     if ((buff & rst::Buffers::Depth) == rst::Buffers::Depth)
     {
         std::fill(depth_buf.begin(), depth_buf.end(), std::numeric_limits<float>::infinity());
+        std::fill(depth_buf_msaa.begin(), depth_buf_msaa.end(), std::numeric_limits<float>::infinity());
     }
 }
 
@@ -426,6 +440,7 @@ rst::rasterizer::rasterizer(int w, int h) : width(w), height(h)
 
     frame_buf.resize(w * h);
     depth_buf.resize(w * h);
+    depth_buf_msaa.resize(w * h * sample_count);
 
     texture = std::nullopt;
 }
