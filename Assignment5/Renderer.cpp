@@ -223,14 +223,37 @@ void Renderer::Render(const Scene& scene)
         for (int i = 0; i < scene.width; ++i)
         {
             // generate primary ray direction
-            float x = 0;
-            float y = 0;
+
+
             // TODO: Find the x and y positions of the current pixel to get the direction
             // vector that passes through it.
             // Also, don't forget to multiply both of them with the variable *scale*, and
             // x (horizontal) variable with the *imageAspectRatio*            
 
-            Vector3f dir = Vector3f(x, y, -1); // Don't forget to normalize this direction!
+            // i,j是屏幕空间的像素，所以先进行视口变换的逆变换到NDC坐标系下，然后应用投影矩阵的逆矩阵变换到摄像机空间即可
+            // 视口变换
+            // X = 0.5f * w * (x + 1)
+            // Y = 0.5f * w * (y + 1)
+            // 逆变换
+            // x = 2X/w - 1
+            // y = 2X/h - 1
+
+            // 投影变换
+            // X = x * (1 / imageAspectRatio) * (1 / scale)
+            // Y = y * (1 / scale)
+
+            // 逆变换
+            // x = X * imageAspectRatio * scale
+            // y = Y * scale
+
+			float x = 2 * ( i + 0.5f) / scene.width - 1.0f;
+            x = x * imageAspectRatio * scale;
+			float y = 2 * (j + 0.5f) / scene.height - 1.0f;
+            y *= -1.0f;
+            y = y * scale;
+
+            Vector3f dir = normalize(Vector3f(x, y, -1)); // Don't forget to normalize this direction!
+            
             framebuffer[m++] = castRay(eye_pos, dir, scene, 0);
         }
         UpdateProgress(j / (float)scene.height);
