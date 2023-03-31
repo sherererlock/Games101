@@ -33,6 +33,7 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
     Bounds3 bounds;
     for (int i = 0; i < objects.size(); ++i)
         bounds = Union(bounds, objects[i]->getBounds());
+
     if (objects.size() == 1) {
         // Create leaf _BVHBuildNode_
         node->bounds = objects[0]->getBounds();
@@ -53,6 +54,7 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
         for (int i = 0; i < objects.size(); ++i)
             centroidBounds =
                 Union(centroidBounds, objects[i]->getBounds().Centroid());
+
         int dim = centroidBounds.maxExtent();
         switch (dim) {
         case 0:
@@ -98,6 +100,7 @@ Intersection BVHAccel::Intersect(const Ray& ray) const
     Intersection isect;
     if (!root)
         return isect;
+
     isect = BVHAccel::getIntersection(root, ray);
     return isect;
 }
@@ -105,7 +108,31 @@ Intersection BVHAccel::Intersect(const Ray& ray) const
 Intersection BVHAccel::getIntersection(BVHBuildNode* node, const Ray& ray) const
 {
     // TODO Traverse the BVH to find intersection
+	Intersection result;
+    if (node == nullptr)
+        return result;
 
-    Intersection result;
+    //const std::array<int, 3> dirIsNeg{int(ray.direction.x > 0), int(ray.direction.y > 0), int(ray.direction.z > 0) };
+    const std::array<int, 3> dirIsNeg{ int(ray.direction.x < 0), int(ray.direction.y < 0), int(ray.direction.z < 0) };
+    if (!node->bounds.IntersectP(ray, ray.direction_inv, dirIsNeg))
+        return result;
+
+    if (node->object != nullptr)
+        return node->object->getIntersection(ray);
+
+    Intersection left, right;
+    if (node->left != nullptr)
+        left = getIntersection(node->left, ray);
+
+    if (node->right != nullptr)
+        right = getIntersection(node->right, ray);
+
+    if (left.happened && right.happened)
+        result = left.distance < right.distance ? left : right;
+    else if (left.happened)
+        result = left;
+    else if (right.happened)
+        result = right;
+
     return result;
 }

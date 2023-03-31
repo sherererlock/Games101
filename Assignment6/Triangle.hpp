@@ -89,13 +89,16 @@ public:
         Vector3f max_vert = Vector3f{-std::numeric_limits<float>::infinity(),
                                      -std::numeric_limits<float>::infinity(),
                                      -std::numeric_limits<float>::infinity()};
+
         for (int i = 0; i < mesh.Vertices.size(); i += 3) {
             std::array<Vector3f, 3> face_vertices;
+
             for (int j = 0; j < 3; j++) {
                 auto vert = Vector3f(mesh.Vertices[i + j].Position.X,
                                      mesh.Vertices[i + j].Position.Y,
                                      mesh.Vertices[i + j].Position.Z) *
                             60.f;
+
                 face_vertices[j] = vert;
 
                 min_vert = Vector3f(std::min(min_vert.x, vert.x),
@@ -109,6 +112,7 @@ public:
             auto new_mat =
                 new Material(MaterialType::DIFFUSE_AND_GLOSSY,
                              Vector3f(0.5, 0.5, 0.5), Vector3f(0, 0, 0));
+
             new_mat->Kd = 0.6;
             new_mat->Ks = 0.0;
             new_mat->specularExponent = 0;
@@ -214,6 +218,7 @@ inline Intersection Triangle::getIntersection(Ray ray)
 
     if (dotProduct(ray.direction, normal) > 0)
         return inter;
+
     double u, v, t_tmp = 0;
     Vector3f pvec = crossProduct(ray.direction, e2);
     double det = dotProduct(e1, pvec);
@@ -225,16 +230,25 @@ inline Intersection Triangle::getIntersection(Ray ray)
     u = dotProduct(tvec, pvec) * det_inv;
     if (u < 0 || u > 1)
         return inter;
+
     Vector3f qvec = crossProduct(tvec, e1);
     v = dotProduct(ray.direction, qvec) * det_inv;
     if (v < 0 || u + v > 1)
         return inter;
+
     t_tmp = dotProduct(e2, qvec) * det_inv;
 
+    // error
+    if (t_tmp < 0)
+        return inter;
+
     // TODO find ray triangle intersection
-
-
-
+    inter.happened = true;
+    inter.coords = ray(t_tmp);
+    inter.distance = t_tmp;
+    inter.normal = normal;
+    inter.m = m;
+    inter.obj = this;
 
     return inter;
 }

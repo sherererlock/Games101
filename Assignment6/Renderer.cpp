@@ -36,9 +36,20 @@ void Renderer::Render(const Scene& scene)
 
             // Don't forget to normalize this direction!
 
+            Vector3f pixel_world_position(x, y, -1.0f);
+
+            // error
+            //Vector3f direction = normalize(pixel_world_position - eye_pos);
+
+            Vector3f direction = normalize(pixel_world_position);
+            Ray ray(eye_pos, direction);
+
+            Vector3f color = scene.castRay(ray, 0);
+            framebuffer[m++] = color;
         }
         UpdateProgress(j / (float)scene.height);
     }
+
     UpdateProgress(1.f);
 
     // save framebuffer to file
