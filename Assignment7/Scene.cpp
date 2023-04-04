@@ -7,7 +7,7 @@
 
 void Scene::buildBVH() {
     printf(" - Generating BVH...\n\n");
-    this->bvh = new BVHAccel(objects, 1, BVHAccel::SplitMethod::NAIVE);
+    this->bvh = new BVHAccel(objects, 1, BVHAccel::SplitMethod::SAH);
 }
 
 Intersection Scene::intersect(const Ray &ray) const
@@ -61,6 +61,16 @@ bool Scene::trace(
 Vector3f Scene::castRay(const Ray &ray, int depth) const
 {
     // TO DO Implement Path Tracing Algorithm here
+
+    float ksi = std::rand();
+    if (ksi > RussianRoulette)
+        return backgroundColor;
+
+    Intersection inter = Scene::intersect(ray);
+    if (inter.happened == false)
+        return backgroundColor;
+
+
 
     Vector3f result;
     return result;

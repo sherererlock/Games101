@@ -97,6 +97,51 @@ inline bool Bounds3::IntersectP(const Ray& ray, const Vector3f& invDir,
     // dirIsNeg: ray direction(x,y,z), dirIsNeg=[int(x>0),int(y>0),int(z>0)], use this to simplify your logic
     // TODO test if ray bound intersects
 
+//   error 运算符优先级
+ //   float tMinX = ((dirIsNeg[0] ? pMin.x : pMax.x) - ray.origin.x) * invDir.x;
+ //   float tMinY = ((dirIsNeg[1] ? pMin.y : pMax.y) - ray.origin.y) * invDir.y;
+ //   float tMinZ = ((dirIsNeg[2] ? pMin.z : pMax.z) - ray.origin.z) * invDir.z;
+
+	//float tMaxX = ((!dirIsNeg[0] ? pMin.x : pMax.x) - ray.origin.x) * invDir.x;
+	//float tMaxY = ((!dirIsNeg[1] ? pMin.y : pMax.y) - ray.origin.y) * invDir.y;
+	//float tMaxZ = ((!dirIsNeg[2] ? pMin.z : pMax.z) - ray.origin.z) * invDir.z;
+
+	float tMinX = (pMin.x - ray.origin.x) * invDir.x;
+	float tMinY = (pMin.y - ray.origin.y) * invDir.y;
+	float tMinZ = (pMin.z - ray.origin.z) * invDir.z;
+
+	float tMaxX = (pMax.x - ray.origin.x) * invDir.x;
+	float tMaxY = (pMax.y - ray.origin.y) * invDir.y;
+	float tMaxZ = (pMax.z - ray.origin.z) * invDir.z;
+
+	if (dirIsNeg[0])
+		std::swap(tMinX, tMaxX);
+
+	if (dirIsNeg[1])
+		std::swap(tMinY, tMaxY);
+
+	if (dirIsNeg[2])
+		std::swap(tMinZ, tMaxZ);
+
+	float tEnter = std::max(std::max(tMinX, tMinY), tMinZ);
+	float tExit = std::min(std::min(tMaxX, tMaxY), tMaxZ);
+
+	//   Vector3f tMin = (pMin - ray.origin) * invDir;
+	//   Vector3f tMax = (pMax - ray.origin) * invDir;
+	   //if (dirIsNeg[0])
+	   //	std::swap(tMin.x, tMax.x);
+
+	   //if (dirIsNeg[1])
+	   //	std::swap(tMin.y, tMax.y);
+
+	   //if (dirIsNeg[2])
+	   //	std::swap(tMin.z, tMax.z);
+
+	//   float tEnter = std::max(std::max(tMin.x, tMin.y), tMin.z);
+	//   float tExit = std::min(std::min(tMax.x, tMax.y), tMax.z);
+
+
+	return tExit > tEnter && tExit >= 0.0f;
 }
 
 inline Bounds3 Union(const Bounds3& b1, const Bounds3& b2)

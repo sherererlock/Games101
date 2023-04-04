@@ -132,8 +132,11 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
                 for (int j = 1; j < bucketCount; j++)
                 {
                     auto begin = objects.begin();
-                    auto middle = objects.begin() + (objects.size() * (float)j / bucketCount);
+					int count = std::ceil((float)objects.size() * (float)j / (float)bucketCount);
+					count = std::clamp(count, 1, (int)objects.size() - 1);
+                    auto middle = objects.begin() + count;
                     auto end = objects.end();
+
                     auto left = std::vector<Object*>(begin, middle);
                     auto right = std::vector<Object*>(middle, end);
 
@@ -144,7 +147,7 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
 					for (int k = 0; k < right.size(); k++)
                         rightBounds = Union(rightBounds, right[k]->getBounds().Centroid());
 
-                    float cost = 1.0f + (leftBounds.SurfaceArea() * left.size() + rightBounds.SurfaceArea() * right.size()) * SC;
+                    float cost = 1 + (leftBounds.SurfaceArea() * left.size() + rightBounds.SurfaceArea() * right.size()) * SC;
 
                     if (cost < minCost)
                     {
@@ -180,7 +183,10 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
             }
 
 			auto beginning = objects.begin();
-			auto middling = objects.begin() + (objects.size() * minCostIndex / bucketCount);
+			int count = std::ceil((float)objects.size() * (float)minCostIndex / (float)bucketCount);
+			count = std::clamp(count, 1, (int)objects.size() - 1);
+
+			auto middling = objects.begin() + count;
 			auto ending = objects.end();
 
 			auto leftshapes = std::vector<Object*>(beginning, middling);
