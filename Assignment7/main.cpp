@@ -14,7 +14,7 @@ int main(int argc, char** argv)
 {
 
     // Change the definition here to change resolution
-    Scene scene(784, 784);
+    Scene scene(512, 512);
 
     Material* red = new Material(DIFFUSE, Vector3f(0.0f));
     red->Kd = Vector3f(0.63f, 0.065f, 0.05f);
@@ -51,6 +51,8 @@ int main(int argc, char** argv)
     std::cout << "Time taken: " << std::chrono::duration_cast<std::chrono::hours>(stop - start).count() << " hours\n";
     std::cout << "          : " << std::chrono::duration_cast<std::chrono::minutes>(stop - start).count() << " minutes\n";
     std::cout << "          : " << std::chrono::duration_cast<std::chrono::seconds>(stop - start).count() << " seconds\n";
+
+    getchar();
 
     return 0;
 }

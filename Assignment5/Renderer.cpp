@@ -246,9 +246,9 @@ void Renderer::Render(const Scene& scene)
             // x = X * imageAspectRatio * scale
             // y = Y * scale
 
-			float x = 2 * ( i + 0.5f) / scene.width - 1.0f;
+			float x = 2.0f * ( i + 0.5f) / (float)scene.width - 1.0f;
             x = x * imageAspectRatio * scale;
-			float y = 2 * (j + 0.5f) / scene.height - 1.0f;
+			float y = 2.0f * (j + 0.5f) / (float)scene.height - 1.0f;
             y *= -1.0f;
             y = y * scale;
 
