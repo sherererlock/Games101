@@ -44,7 +44,7 @@ int main(int argc, char** argv)
     Renderer r;
 
     auto start = std::chrono::system_clock::now();
-    r.Render(scene);
+    r.RenderMultithread(scene);
     auto stop = std::chrono::system_clock::now();
 
     std::cout << "Render complete: \n";

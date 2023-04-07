@@ -198,7 +198,7 @@ public:
     void Sample(Intersection &pos, float &pdf){
         bvh->Sample(pos, pdf);
         pos.emit = m->getEmission();
-    }
+	}
     float getArea(){
         return area;
     }
