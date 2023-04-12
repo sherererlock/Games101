@@ -14,7 +14,7 @@ int main(int argc, char** argv)
 {
 
     // Change the definition here to change resolution
-    Scene scene(512, 512);
+    Scene scene(784, 784);
 
     Material* red = new Material(DIFFUSE, Vector3f(0.0f));
     red->Kd = Vector3f(0.63f, 0.065f, 0.05f);
@@ -26,9 +26,9 @@ int main(int argc, char** argv)
     light->Kd = Vector3f(0.65f);
 
 	Material* ms = new Material(MICROSURFACE, Vector3f(0.0f));
-    ms->Roughness = 0.3f;
-    ms->Ks = Vector3f(0.45f, 0.45f, 0.45f);
-    ms->Kd = Vector3f(0.3f, 0.3f, 0.2f);
+    ms->Roughness = 0.8f;
+    ms->Ks = Vector3f(0.8f, 0.2f, 0.2f);
+    ms->Kd = Vector3f(0.3f, 0.3f, 0.25f);
 
     Sphere sphere(Vector3f(150, 100, 300), 100, ms);
 
@@ -39,12 +39,12 @@ int main(int argc, char** argv)
     MeshTriangle right("../models/cornellbox/right.obj", green);
     MeshTriangle light_("../models/cornellbox/light.obj", light);
 
+    scene.Add(&sphere);
     scene.Add(&floor);
     //scene.Add(&shortbox);
     scene.Add(&tallbox);
-    scene.Add(&sphere);
-    scene.Add(&left);
-    scene.Add(&right);
+	scene.Add(&left);
+	scene.Add(&right);
     scene.Add(&light_);
 
     scene.buildBVH();

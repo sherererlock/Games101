@@ -186,7 +186,6 @@ Vector3f Material::eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &
 
 		case MICROSURFACE:
 		{
-
             float cosAlpha = dotProduct(wo, N);
             if (cosAlpha < 0)
                 return Vector3f(0.0f);
@@ -197,8 +196,8 @@ Vector3f Material::eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &
             float G = GeometrySmith(N, wo, wi, Roughness);
             
             float F;
-            float etat = 1.85f;
-            fresnel(wi, N, etat, F);
+            float etat = 1.2f;
+            fresnel(-wi, N, etat, F);
 
             Vector3f nom = D * F * G;
             float denom = 4 * std::max(dotProduct(wi, N), 0.0f) * cosAlpha;
@@ -212,6 +211,8 @@ Vector3f Material::eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &
 			Vector3f fr_diffuse = 1.0f / M_PI;
 
             return Ks * specular + kd_ * fr_diffuse;
+
+            break;
 		}
     }
 }
@@ -234,7 +235,7 @@ inline float Material::D_GGX_TR(Vector3f N, Vector3f H, float roughness)
 inline float Material::GeometrySchlickGGX(float NdotV, float k)
 {
     float nom = NdotV;
-    float denom = NdotV * (1 - k) + k;
+    float denom = NdotV * (1.0f - k) + k;
 
     return nom / denom;
 }
