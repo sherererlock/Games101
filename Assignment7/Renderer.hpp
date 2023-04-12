@@ -26,6 +26,6 @@ private:
     static int currentRowIndex;
     static std::mutex RowIndexMutex;
 
-    int thread_count = 16;
+    int thread_count = 24;
     std::vector<std::thread> thread_pools;
 };

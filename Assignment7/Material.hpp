@@ -7,7 +7,7 @@
 
 #include "Vector.hpp"
 
-enum MaterialType { DIFFUSE};
+enum MaterialType { DIFFUSE, MICROSURFACE};
 
 class Material{
 private:
@@ -94,6 +94,9 @@ public:
     float specularExponent;
     //Texture tex;
 
+    float Roughness = 0.5f;
+    Vector3f F0 = Vector3f(1.0f);
+
     inline Material(MaterialType t=DIFFUSE, Vector3f e=Vector3f(0,0,0));
     inline MaterialType getType();
     //inline Vector3f getColor();
@@ -108,6 +111,10 @@ public:
     // given a ray, calculate the contribution of this ray
     inline Vector3f eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &N);
 
+    float D_GGX_TR(Vector3f N, Vector3f H, float roughness);
+    float GeometrySchlickGGX(float NdotV, float k);
+    float GeometrySmith(Vector3f N, Vector3f V, Vector3f L, float k);
+    Vector3f FresnelSchlick(float cosThelta, Vector3f F0);
 };
 
 Material::Material(MaterialType t, Vector3f e){
@@ -132,6 +139,7 @@ Vector3f Material::getColorAt(double u, double v) {
 Vector3f Material::sample(const Vector3f &wi, const Vector3f &N){
     switch(m_type){
         case DIFFUSE:
+        case MICROSURFACE:
         {
             // uniform sample on the hemisphere
             float x_1 = get_random_float(), x_2 = get_random_float();
@@ -147,7 +155,8 @@ Vector3f Material::sample(const Vector3f &wi, const Vector3f &N){
 
 float Material::pdf(const Vector3f &wi, const Vector3f &wo, const Vector3f &N){
     switch(m_type){
-        case DIFFUSE:
+	case DIFFUSE:
+	case MICROSURFACE:
         {
             // uniform sample probability 1 / (2 * PI)
             if (dotProduct(wo, N) > 0.0f)
@@ -156,6 +165,7 @@ float Material::pdf(const Vector3f &wi, const Vector3f &wo, const Vector3f &N){
                 return 0.0f;
             break;
         }
+
     }
 }
 
@@ -173,7 +183,77 @@ Vector3f Material::eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &
                 return Vector3f(0.0f);
             break;
         }
+
+		case MICROSURFACE:
+		{
+
+            float cosAlpha = dotProduct(wo, N);
+            if (cosAlpha < 0)
+                return Vector3f(0.0f);
+
+            Vector3f H = (wi + wo).normalized();
+
+            float D = D_GGX_TR(N, H, Roughness);
+            float G = GeometrySmith(N, wo, wi, Roughness);
+            
+            float F;
+            float etat = 1.85f;
+            fresnel(wi, N, etat, F);
+
+            Vector3f nom = D * F * G;
+            float denom = 4 * std::max(dotProduct(wi, N), 0.0f) * cosAlpha;
+
+            Vector3f specular = nom / std::max(denom, 0.000001f);
+
+			// 能量守恒
+			float ks_ = F;//反射比率
+			float kd_ = 1.0f - ks_;//折射比率
+
+			Vector3f fr_diffuse = 1.0f / M_PI;
+
+            return Ks * specular + kd_ * fr_diffuse;
+		}
     }
+}
+
+inline float Material::D_GGX_TR(Vector3f N, Vector3f H, float roughness)
+{
+    float a = roughness * roughness;
+    float a2 = a * a;
+
+    float NdotH = std::max(dotProduct(N, H), 0.0f);
+    float NdotH2 = NdotH * NdotH;
+
+    float nom = a2;
+    float denom = NdotH2 * (a2 - 1.0f) + 1.0f;
+    denom = M_PI * denom * denom;
+
+    return nom / std::max(denom, 0.00001f);
+}
+
+inline float Material::GeometrySchlickGGX(float NdotV, float k)
+{
+    float nom = NdotV;
+    float denom = NdotV * (1 - k) + k;
+
+    return nom / denom;
+}
+
+inline float Material::GeometrySmith(Vector3f N, Vector3f V, Vector3f L, float roughness)
+{
+    float r = (roughness + 1.0f);
+    float k = (r * r) / 8.0f;
+
+    float NdotV = std::max(dotProduct(N, V), 0.0f);
+    float NDotL = std::max(dotProduct(N, L), 0.0f);
+
+    return GeometrySchlickGGX(NdotV, k) * GeometrySchlickGGX(NDotL, k);
+}
+
+inline Vector3f Material::FresnelSchlick(float cosThelta, Vector3f F0)
+{
+    //return  F0 + ( 1.0f - F0) * pow(1.0f - cosThelta, 5.0f);
+    return Vector3f();
 }
 
 #endif //RAYTRACING_MATERIAL_H

@@ -15,7 +15,7 @@ const float EPSILON = 0.00001;
 // The main render function. This where we iterate over all pixels in the image,
 // generate primary rays and cast these rays into the scene. The content of the
 // framebuffer is saved to a file.
-int Renderer::spp = 16;
+int Renderer::spp = 8;
 int Renderer::currentRowIndex = 0;
 std::mutex Renderer::RowIndexMutex;
 
