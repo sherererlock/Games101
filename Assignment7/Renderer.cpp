@@ -3,6 +3,7 @@
 //
 
 #include <fstream>
+#include <string>
 
 #include "Scene.hpp"
 #include "Renderer.hpp"
@@ -49,7 +50,9 @@ void Renderer::Render(const Scene& scene)
         }
         UpdateProgress(j / (float)scene.height);
     }
-    UpdateProgress(1.f);
+
+	std::cout << std::endl;
+    //UpdateProgress(1.f);
 
     // save framebuffer to file
     FILE* fp = fopen("binary.ppm", "wb");
@@ -66,6 +69,8 @@ void Renderer::Render(const Scene& scene)
 
 void Renderer::RenderMultithread(const Scene& scene)
 {
+	thread_pools.clear();
+
 	thread_count = std::thread::hardware_concurrency();
 	thread_pools.reserve(thread_count);
 
@@ -77,7 +82,7 @@ void Renderer::RenderMultithread(const Scene& scene)
 
 	// change the spp value to change sample ammount
 	
-	std::cout << "SPP: " << spp << " Thread Count: "<< thread_count << "\n";
+	std::cout << "SPP: " << spp << " Thread Count: "<< thread_count << " roughness:"<< roughness << "\n";
 	int row_count_per_thread = std::ceil((float)scene.height / (float)thread_count);
 	int currentIndex = 0;
 	for (int i = 0; i < thread_count; i++)
@@ -93,8 +98,10 @@ void Renderer::RenderMultithread(const Scene& scene)
 
 	//UpdateProgress(1.f);
 
+	std::string name;
+	name = name + "binary_" + std::to_string(spp) + "_" + std::to_string(roughness) + ".ppm";
 	// save framebuffer to file
-	FILE* fp = fopen("binary.ppm", "wb");
+	FILE* fp = fopen(name.c_str(), "wb");
 	(void)fprintf(fp, "P6\n%d %d\n255\n", scene.width, scene.height);
 	for (auto i = 0; i < scene.height * scene.width; ++i) {
 		static unsigned char color[3];

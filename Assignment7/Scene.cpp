@@ -130,7 +130,7 @@ Vector3f Scene::Shader(const Intersection& inter, const Vector3f& direction) con
 		LigthInter.normal.normalized();
 		float cos = std::max(0.0f, dotProduct(pToLightDir, inter.normal));
 		float cos_ = std::max(0.0f, dotProduct(-pToLightDir, LigthInter.normal));
-		Vector3f f_r = inter.m->eval(direction, pToLightDir, inter.normal);
+		Vector3f f_r = inter.m->eval(pToLightDir, direction, inter.normal);
 		directLight = LigthInter.emit * f_r * cos * cos_ / pToLightDistance / pToLightDistance / pdf;
 	}
 
@@ -138,7 +138,7 @@ Vector3f Scene::Shader(const Intersection& inter, const Vector3f& direction) con
 	if (get_random_float() < RussianRoulette)
 	{
 		Vector3f wi = inter.m->sample(direction, inter.normal).normalized();
-		float pdf_ = inter.m->pdf(direction, wi, inter.normal);
+		float pdf_ = inter.m->pdf(wi, direction, inter.normal);
 		if (pdf_ > 0.0005f)
 		{
 			Ray outRay(inter.coords, wi);
@@ -146,7 +146,7 @@ Vector3f Scene::Shader(const Intersection& inter, const Vector3f& direction) con
 			if (outInter.happened && !outInter.m->hasEmission())
 			{
 				float cos = std::max(0.0f, dotProduct(wi, inter.normal));
-				Vector3f f_r = inter.m->eval(direction, wi, inter.normal);
+				Vector3f f_r = inter.m->eval(wi, direction, inter.normal);
 				indirectLight = Shader(outInter, -wi) * f_r * cos / pdf_ / RussianRoulette;
 			}
 		}

@@ -13,6 +13,8 @@
 int main(int argc, char** argv)
 {
 
+	Renderer r;
+
     // Change the definition here to change resolution
     Scene scene(784, 784);
 
@@ -26,7 +28,7 @@ int main(int argc, char** argv)
     light->Kd = Vector3f(0.65f);
 
 	Material* ms = new Material(MICROSURFACE, Vector3f(0.0f));
-    ms->Roughness = 0.8f;
+    ms->Roughness = r.roughness;
     ms->Ks = Vector3f(0.8f, 0.2f, 0.2f);
     ms->Kd = Vector3f(0.3f, 0.3f, 0.25f);
 
@@ -49,10 +51,14 @@ int main(int argc, char** argv)
 
     scene.buildBVH();
 
-    Renderer r;
+	auto start = std::chrono::system_clock::now();
+    for (int i = 0; i <= 10; i += 2)
+    {
+        r.roughness = std::max((float)i * 0.1f, 0.1f);
+        ms->Roughness = r.roughness;
+        r.RenderMultithread(scene);
+    }
 
-    auto start = std::chrono::system_clock::now();
-    r.RenderMultithread(scene);
     auto stop = std::chrono::system_clock::now();
 
     std::cout << "Render complete: \n";

@@ -186,8 +186,9 @@ Vector3f Material::eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &
 
 		case MICROSURFACE:
 		{
+            float metallic = 1;
             float cosAlpha = dotProduct(wo, N);
-            if (cosAlpha < 0)
+            if (cosAlpha < 0.0f)
                 return Vector3f(0.0f);
 
             Vector3f H = (wi + wo).normalized();
@@ -195,22 +196,26 @@ Vector3f Material::eval(const Vector3f &wi, const Vector3f &wo, const Vector3f &
             float D = D_GGX_TR(N, H, Roughness);
             float G = GeometrySmith(N, wo, wi, Roughness);
             
-            float F;
-            float etat = 1.2f;
-            fresnel(-wi, N, etat, F);
+            //float F;
+            //float etat = 1.2f;
+            //fresnel(-wo, N, etat, F);
+
+            Vector3f F0(0.04f);
+            F0 = lerp(F0, Kd, metallic);
+            Vector3f F = FresnelSchlick(std::max(dotProduct(H, wo), 0.0f), F0);
 
             Vector3f nom = D * F * G;
             float denom = 4 * std::max(dotProduct(wi, N), 0.0f) * cosAlpha;
 
             Vector3f specular = nom / std::max(denom, 0.000001f);
 
-			// 能量守恒
-			float ks_ = F;//反射比率
-			float kd_ = 1.0f - ks_;//折射比率
+            Vector3f KS = F;
+            Vector3f KD = Vector3f(1.0f) - KS;
+            KD = KD * (1.0f - metallic);
 
 			Vector3f fr_diffuse = 1.0f / M_PI;
 
-            return Ks * specular + kd_ * fr_diffuse;
+            return specular + KD * fr_diffuse;
 
             break;
 		}
@@ -253,8 +258,7 @@ inline float Material::GeometrySmith(Vector3f N, Vector3f V, Vector3f L, float r
 
 inline Vector3f Material::FresnelSchlick(float cosThelta, Vector3f F0)
 {
-    //return  F0 + ( 1.0f - F0) * pow(1.0f - cosThelta, 5.0f);
-    return Vector3f();
+    return  F0 + (Vector3f(1.0f) - F0) * pow(1.0f - cosThelta, 5.0f);
 }
 
 #endif //RAYTRACING_MATERIAL_H

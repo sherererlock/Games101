@@ -26,6 +26,11 @@ private:
     static int currentRowIndex;
     static std::mutex RowIndexMutex;
 
+
     int thread_count = 24;
     std::vector<std::thread> thread_pools;
+
+public:
+    float roughness = 0.1f;
+
 };
