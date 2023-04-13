@@ -51,20 +51,23 @@ int main(int argc, char** argv)
 
     scene.buildBVH();
 
-	auto start = std::chrono::system_clock::now();
     for (int i = 0; i <= 10; i += 2)
     {
+		auto start = std::chrono::system_clock::now();
+
         r.roughness = std::max((float)i * 0.1f, 0.1f);
         ms->Roughness = r.roughness;
         r.RenderMultithread(scene);
+
+		auto stop = std::chrono::system_clock::now();
+
+		std::cout << "Render complete: \n";
+		std::cout << "Time taken: " << std::chrono::duration_cast<std::chrono::hours>(stop - start).count() << " hours\n";
+		std::cout << "          : " << std::chrono::duration_cast<std::chrono::minutes>(stop - start).count() << " minutes\n";
+		std::cout << "          : " << std::chrono::duration_cast<std::chrono::seconds>(stop - start).count() << " seconds\n";
     }
 
-    auto stop = std::chrono::system_clock::now();
 
-    std::cout << "Render complete: \n";
-    std::cout << "Time taken: " << std::chrono::duration_cast<std::chrono::hours>(stop - start).count() << " hours\n";
-    std::cout << "          : " << std::chrono::duration_cast<std::chrono::minutes>(stop - start).count() << " minutes\n";
-    std::cout << "          : " << std::chrono::duration_cast<std::chrono::seconds>(stop - start).count() << " seconds\n";
 
     getchar();
 

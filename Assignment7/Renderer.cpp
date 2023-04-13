@@ -70,6 +70,7 @@ void Renderer::Render(const Scene& scene)
 void Renderer::RenderMultithread(const Scene& scene)
 {
 	thread_pools.clear();
+	currentRowIndex = 0;
 
 	thread_count = std::thread::hardware_concurrency();
 	thread_pools.reserve(thread_count);
